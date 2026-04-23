@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 // 搜索框相关数据
 const searchValue = ref('')
@@ -8,6 +8,14 @@ const searchValue = ref('')
 const currentSlide = ref(0)
 const autoPlayInterval = ref(null)
 const isPaused = ref(false)
+
+// 秒杀倒计时
+const countdown = ref({
+  hours: 2,
+  minutes: 34,
+  seconds: 56
+})
+const countdownInterval = ref(null)
 
 const slides = ref([
   {
@@ -54,6 +62,46 @@ const navItems = ref([
   { id: 10, icon: '🎯', name: '母婴', bgColor: '#fffaf5', iconBg: '#FFDAC1' }
 ])
 
+// 秒杀商品数据
+const flashSaleProducts = ref([
+  {
+    id: 101,
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=smart%20watch%20fitness%20tracker%20modern%20design%20product%20photo&image_size=square_hd',
+    name: '智能运动手表 心率监测',
+    price: 199,
+    originalPrice: 499,
+    sales: 1234,
+    stock: 36
+  },
+  {
+    id: 102,
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=wireless%20earbuds%20premium%20design%20product%20photo&image_size=square_hd',
+    name: '真无线蓝牙耳机 主动降噪',
+    price: 299,
+    originalPrice: 799,
+    sales: 2345,
+    stock: 28
+  },
+  {
+    id: 103,
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=portable%20power%20bank%20slim%20design%20product%20photo&image_size=square_hd',
+    name: '10000mAh 充电宝 快充',
+    price: 99,
+    originalPrice: 299,
+    sales: 3456,
+    stock: 52
+  },
+  {
+    id: 104,
+    image: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=waterproof%20bluetooth%20speaker%20portable%20product%20photo&image_size=square_hd',
+    name: '防水蓝牙音箱 重低音',
+    price: 159,
+    originalPrice: 399,
+    sales: 1890,
+    stock: 15
+  }
+])
+
 // 商品列表数据 - 增强价格优惠属性
 const products = ref([
   {
@@ -64,7 +112,8 @@ const products = ref([
     originalPrice: 599,
     sales: 2356,
     tags: ['热卖', '限时折扣'],
-    coupon: '满300减30'
+    coupon: '满300减30',
+    isHot: true
   },
   {
     id: 2,
@@ -74,7 +123,8 @@ const products = ref([
     originalPrice: 399,
     sales: 5892,
     tags: ['爆款', '新品'],
-    coupon: ''
+    coupon: '',
+    isNew: true
   },
   {
     id: 3,
@@ -84,7 +134,8 @@ const products = ref([
     originalPrice: 899,
     sales: 856,
     tags: ['包邮'],
-    coupon: '满500减50'
+    coupon: '满500减50',
+    isHot: true
   },
   {
     id: 4,
@@ -94,7 +145,8 @@ const products = ref([
     originalPrice: 1299,
     sales: 3421,
     tags: ['限时', '买一送一'],
-    coupon: '满800减100'
+    coupon: '满800减100',
+    isNew: true
   },
   {
     id: 5,
@@ -104,7 +156,8 @@ const products = ref([
     originalPrice: 1599,
     sales: 1256,
     tags: ['新品'],
-    coupon: ''
+    coupon: '',
+    isNew: true
   },
   {
     id: 6,
@@ -114,7 +167,8 @@ const products = ref([
     originalPrice: 1199,
     sales: 2134,
     tags: ['热卖', '限时'],
-    coupon: '满600减60'
+    coupon: '满600减60',
+    isHot: true
   },
   {
     id: 7,
@@ -124,7 +178,8 @@ const products = ref([
     originalPrice: 299,
     sales: 8765,
     tags: ['爆款', '包邮'],
-    coupon: ''
+    coupon: '',
+    isHot: true
   },
   {
     id: 8,
@@ -134,7 +189,8 @@ const products = ref([
     originalPrice: 499,
     sales: 4567,
     tags: ['限时折扣'],
-    coupon: '满300减30'
+    coupon: '满300减30',
+    isNew: true
   }
 ])
 
@@ -142,6 +198,13 @@ const products = ref([
 const getDiscount = (price, originalPrice) => {
   if (!originalPrice || originalPrice <= 0) return 0
   return Math.round((1 - price / originalPrice) * 10)
+}
+
+// 计算销量百分比
+const getSalesPercentage = (sales, stock) => {
+  if (!stock || stock <= 0) return 100
+  const percentage = (sales / (sales + stock)) * 100
+  return Math.min(percentage, 100)
 }
 
 // 轮播图控制方法
@@ -173,17 +236,88 @@ const stopAutoPlay = () => {
   }
 }
 
+// 秒杀倒计时
+const startCountdown = () => {
+  countdownInterval.value = setInterval(() => {
+    if (countdown.value.seconds > 0) {
+      countdown.value.seconds--
+    } else if (countdown.value.minutes > 0) {
+      countdown.value.minutes--
+      countdown.value.seconds = 59
+    } else if (countdown.value.hours > 0) {
+      countdown.value.hours--
+      countdown.value.minutes = 59
+      countdown.value.seconds = 59
+    }
+  }, 1000)
+}
+
+const stopCountdown = () => {
+  if (countdownInterval.value) {
+    clearInterval(countdownInterval.value)
+    countdownInterval.value = null
+  }
+}
+
 onMounted(() => {
   startAutoPlay()
+  startCountdown()
 })
 
 onUnmounted(() => {
   stopAutoPlay()
+  stopCountdown()
 })
 </script>
 
 <template>
   <div class="home-page">
+    <!-- 顶部主导航栏 -->
+    <header class="main-nav">
+      <div class="nav-container">
+        <div class="nav-left">
+          <div class="logo">
+            <span class="logo-text">E-Shop</span>
+          </div>
+        </div>
+        <div class="nav-center">
+          <ul class="nav-menu">
+            <li class="nav-item active">
+              <span class="nav-link">首页</span>
+            </li>
+            <li class="nav-item">
+              <span class="nav-link">分类</span>
+            </li>
+            <li class="nav-item flash-sale-item">
+              <span class="nav-link">
+                <span class="flash-sale-icon">⚡</span>
+                秒杀
+              </span>
+            </li>
+            <li class="nav-item">
+              <span class="nav-link">会员</span>
+            </li>
+            <li class="nav-item">
+              <span class="nav-link">我的</span>
+            </li>
+          </ul>
+        </div>
+        <div class="nav-right">
+          <div class="user-actions">
+            <span class="action-item">
+              <el-icon><Bell /></el-icon>
+            </span>
+            <span class="action-item">
+              <el-icon><ShoppingCart /></el-icon>
+            </span>
+            <span class="action-item">
+              <el-icon><User /></el-icon>
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+
     <!-- 顶部搜索栏 -->
     <header class="search-header">
       <div class="search-container">
@@ -234,6 +368,7 @@ onUnmounted(() => {
                 <span class="slide-tag">{{ slide.tag }}</span>
                 <h2 class="slide-title">{{ slide.title }}</h2>
                 <p class="slide-description">{{ slide.description }}</p>
+                <button class="slide-btn">立即抢购</button>
               </div>
             </div>
           </div>
@@ -282,79 +417,253 @@ onUnmounted(() => {
       </div>
     </section>
 
+    <!-- 限时秒杀专区 -->
+    <section class="flash-sale-section">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="title-icon">⚡</span>
+          <h2>限时秒杀</h2>
+          <div class="countdown">
+            <span class="countdown-label">距结束</span>
+            <div class="countdown-time">
+              <span class="time-block">{{ countdown.hours.toString().padStart(2, '0') }}</span>
+              <span class="time-separator">:</span>
+              <span class="time-block">{{ countdown.minutes.toString().padStart(2, '0') }}</span>
+              <span class="time-separator">:</span>
+              <span class="time-block">{{ countdown.seconds.toString().padStart(2, '0') }}</span>
+            </div>
+          </div>
+        </div>
+        <span class="section-more">
+          查看更多
+          <el-icon class="more-icon"><ArrowRight /></el-icon>
+        </span>
+      </div>
+      
+      <div class="flash-sale-grid">
+        <div 
+          v-for="product in flashSaleProducts" 
+          :key="product.id" 
+          class="flash-sale-card"
+        >
+          <div class="product-image-wrapper">
+            <div class="flash-sale-badge">
+              <span class="flash-sale-text">秒杀</span>
+            </div>
+            <img 
+              :src="product.image" 
+              :alt="product.name" 
+              class="product-image"
+            />
+            <div class="sales-progress">
+              <div class="progress-bar">
+                <div 
+                  class="progress-fill" 
+                  :style="{ width: getSalesPercentage(product.sales, product.stock) + '%' }"
+                ></div>
+              </div>
+              <span class="progress-text">{{ Math.round(getSalesPercentage(product.sales, product.stock)) }}%已抢</span>
+            </div>
+          </div>
+          <div class="product-info">
+            <h3 class="product-name">{{ product.name }}</h3>
+            <div class="price-area">
+              <div class="price-main">
+                <span class="price-symbol">¥</span>
+                <span class="price-value">{{ product.price }}</span>
+              </div>
+              <span class="price-original">¥{{ product.originalPrice }}</span>
+            </div>
+            <div class="stock-info">
+              <span class="stock-text">仅剩 {{ product.stock }} 件</span>
+              <button class="buy-btn">立即抢购</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 商品列表区域 -->
     <section class="products-section">
-      <div class="products-container">
-        <div class="section-header">
-          <h2 class="section-title">
-            <span class="title-icon">🔥</span>
-            热门推荐
-          </h2>
-          <span class="section-more">
-            查看更多
-            <el-icon class="more-icon"><ArrowRight /></el-icon>
-          </span>
-        </div>
-        
-        <div class="products-grid">
-          <div 
-            v-for="product in products" 
-            :key="product.id" 
-            class="product-card"
-          >
-            <div class="product-image-wrapper">
-              <!-- 折扣角标 -->
-              <div class="discount-badge" v-if="getDiscount(product.price, product.originalPrice) > 0">
-                <span class="discount-text">{{ getDiscount(product.price, product.originalPrice) }}折</span>
-              </div>
-              
-              <!-- 促销标签 -->
-              <div class="promo-tags">
-                <span 
-                  v-for="(tag, index) in product.tags.slice(0, 2)" 
-                  :key="index"
-                  class="promo-tag"
-                  :class="`tag-${tag}`"
-                >
-                  {{ tag }}
-                </span>
-              </div>
-              
-              <img 
-                :src="product.image" 
-                :alt="product.name" 
-                class="product-image"
-              />
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="title-icon">🔥</span>
+          热门推荐
+          <span class="title-decoration"></span>
+        </h2>
+        <span class="section-more">
+          查看更多
+          <el-icon class="more-icon"><ArrowRight /></el-icon>
+        </span>
+      </div>
+      
+      <div class="products-grid">
+        <div 
+          v-for="product in products" 
+          :key="product.id" 
+          class="product-card"
+        >
+          <div class="product-image-wrapper">
+            <!-- 热卖/新品角标 -->
+            <div class="hot-badge" v-if="product.isHot">
+              <span class="hot-text">热卖</span>
+            </div>
+            <div class="new-badge" v-if="product.isNew">
+              <span class="new-text">新品</span>
             </div>
             
-            <div class="product-info">
-              <h3 class="product-name">{{ product.name }}</h3>
-              
-              <!-- 优惠券标签 -->
-              <div class="coupon-row" v-if="product.coupon">
-                <span class="coupon-label">券</span>
-                <span class="coupon-text">{{ product.coupon }}</span>
+            <!-- 折扣角标 -->
+            <div class="discount-badge" v-if="getDiscount(product.price, product.originalPrice) > 0">
+              <span class="discount-text">{{ getDiscount(product.price, product.originalPrice) }}折</span>
+            </div>
+            
+            <!-- 促销标签 -->
+            <div class="promo-tags">
+              <span 
+                v-for="(tag, index) in product.tags.slice(0, 2)" 
+                :key="index"
+                class="promo-tag"
+                :class="`tag-${tag}`"
+              >
+                {{ tag }}
+              </span>
+            </div>
+            
+            <img 
+              :src="product.image" 
+              :alt="product.name" 
+              class="product-image"
+            />
+          </div>
+          
+          <div class="product-info">
+            <h3 class="product-name">{{ product.name }}</h3>
+            
+            <!-- 优惠券标签 -->
+            <div class="coupon-row" v-if="product.coupon">
+              <span class="coupon-label">券</span>
+              <span class="coupon-text">{{ product.coupon }}</span>
+            </div>
+            
+            <!-- 价格区域 -->
+            <div class="price-area">
+              <div class="price-main">
+                <span class="price-symbol">¥</span>
+                <span class="price-value">{{ product.price }}</span>
               </div>
-              
-              <!-- 价格区域 -->
-              <div class="price-area">
-                <div class="price-main">
-                  <span class="price-symbol">¥</span>
-                  <span class="price-value">{{ product.price }}</span>
-                </div>
-                <span class="price-original">¥{{ product.originalPrice }}</span>
-                <span class="price-save">省¥{{ product.originalPrice - product.price }}</span>
-              </div>
-              
-              <div class="product-footer">
-                <span class="product-sales">已售 {{ product.sales }}+</span>
-                <span class="product-action">去抢购</span>
+              <span class="price-original">¥{{ product.originalPrice }}</span>
+              <span class="price-save">省¥{{ product.originalPrice - product.price }}</span>
+            </div>
+            
+            <div class="product-footer">
+              <span class="product-sales">已售 {{ product.sales }}+</span>
+              <span class="product-action">去抢购</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 猜你喜欢区域 -->
+    <section class="recommend-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="title-icon">💖</span>
+          猜你喜欢
+          <span class="title-decoration"></span>
+        </h2>
+      </div>
+      
+      <div class="products-grid">
+        <div 
+          v-for="product in products.slice(0, 6)" 
+          :key="product.id" 
+          class="product-card recommend-card"
+        >
+          <div class="product-image-wrapper">
+            <img 
+              :src="product.image" 
+              :alt="product.name" 
+              class="product-image"
+            />
+          </div>
+          <div class="product-info">
+            <h3 class="product-name">{{ product.name }}</h3>
+            <div class="price-area">
+              <div class="price-main">
+                <span class="price-symbol">¥</span>
+                <span class="price-value">{{ product.price }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- 底部版权/服务栏 -->
+    <footer class="footer">
+      <div class="footer-container">
+        <div class="footer-services">
+          <div class="service-item">
+            <span class="service-icon">🚚</span>
+            <span class="service-text">7天无理由退换</span>
+          </div>
+          <div class="service-item">
+            <span class="service-icon">🛡️</span>
+            <span class="service-text">正品保障</span>
+          </div>
+          <div class="service-item">
+            <span class="service-icon">📞</span>
+            <span class="service-text">24小时客服</span>
+          </div>
+          <div class="service-item">
+            <span class="service-icon">💳</span>
+            <span class="service-text">支付安全</span>
+          </div>
+        </div>
+        
+        <div class="footer-links">
+          <div class="link-group">
+            <h3 class="link-title">购物指南</h3>
+            <ul class="link-list">
+              <li><a href="#">新手指南</a></li>
+              <li><a href="#">支付方式</a></li>
+              <li><a href="#">配送说明</a></li>
+              <li><a href="#">常见问题</a></li>
+            </ul>
+          </div>
+          <div class="link-group">
+            <h3 class="link-title">关于我们</h3>
+            <ul class="link-list">
+              <li><a href="#">公司简介</a></li>
+              <li><a href="#">招贤纳士</a></li>
+              <li><a href="#">联系我们</a></li>
+              <li><a href="#">商家入驻</a></li>
+            </ul>
+          </div>
+          <div class="link-group">
+            <h3 class="link-title">客户服务</h3>
+            <ul class="link-list">
+              <li><a href="#">帮助中心</a></li>
+              <li><a href="#">售后服务</a></li>
+              <li><a href="#">意见反馈</a></li>
+              <li><a href="#">投诉建议</a></li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="footer-bottom">
+          <div class="copyright">
+            © 2026 E-Shop. 保留所有权利
+          </div>
+          <div class="social-links">
+            <span class="social-item">微信</span>
+            <span class="social-item">微博</span>
+            <span class="social-item">QQ</span>
+          </div>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -373,15 +682,100 @@ onUnmounted(() => {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* ========== 顶部搜索栏 - 优化版 ========== */
-.search-header {
-  position: fixed;
+/* ========== 顶部主导航栏 ========== */
+.main-nav {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: sticky;
   top: 0;
+  z-index: 1001;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+}
+
+.nav-left .logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ff6b6b;
+}
+
+.nav-center .nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 32px;
+}
+
+.nav-item .nav-link {
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 8px 0;
+  position: relative;
+}
+
+.nav-item.active .nav-link {
+  color: #ff6b6b;
+}
+
+.nav-item.active .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
   left: 0;
   right: 0;
-  z-index: 1000;
+  height: 2px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  border-radius: 1px;
+}
+
+.nav-item:hover .nav-link {
+  color: #ff6b6b;
+}
+
+.flash-sale-item .flash-sale-icon {
+  margin-right: 4px;
+  animation: flash 1.5s infinite;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.nav-right .user-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.action-item {
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.action-item:hover {
+  color: #ff6b6b;
+}
+
+/* ========== 顶部搜索栏 - 优化版 ========== */
+.search-header {
   background: linear-gradient(180deg, #ff6b6b 0%, #ff4757 100%);
   padding: 10px 12px;
+  margin-top: 56px;
 }
 
 .search-container {
@@ -397,6 +791,8 @@ onUnmounted(() => {
   padding: 0 14px;
   height: 36px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-width: 680px;
+  margin: 0 auto;
 }
 
 .search-icon-wrapper {
@@ -446,7 +842,6 @@ onUnmounted(() => {
 /* ========== 轮播图区域 - 优化版 ========== */
 .carousel-section {
   width: 100%;
-  margin-top: 56px;
   overflow: hidden;
   position: relative;
   background: #fff;
@@ -481,6 +876,11 @@ onUnmounted(() => {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.5s ease;
+}
+
+.carousel-slide:hover .slide-image {
+  transform: scale(1.05);
 }
 
 .slide-overlay {
@@ -497,6 +897,7 @@ onUnmounted(() => {
   left: 20px;
   bottom: 16px;
   color: white;
+  max-width: 80%;
 }
 
 .slide-tag {
@@ -520,6 +921,24 @@ onUnmounted(() => {
   font-size: 13px;
   opacity: 0.95;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  margin-bottom: 10px;
+}
+
+.slide-btn {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  border: none;
+  border-radius: 20px;
+  padding: 6px 16px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.slide-btn:hover {
+  background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 100%);
+  transform: scale(1.05);
 }
 
 /* 轮播按钮 */
@@ -593,6 +1012,8 @@ onUnmounted(() => {
 .nav-container {
   width: 100%;
   padding: 0 12px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .nav-grid {
@@ -609,6 +1030,25 @@ onUnmounted(() => {
   padding: 12px 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-item:hover::before {
+  opacity: 1;
 }
 
 .nav-item:active {
@@ -624,6 +1064,12 @@ onUnmounted(() => {
   justify-content: center;
   margin-bottom: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover .nav-icon-bg {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .nav-icon {
@@ -636,6 +1082,201 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
+/* ========== 限时秒杀专区 ========== */
+.flash-sale-section {
+  background: #fff;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.flash-sale-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  color: #fff;
+}
+
+.flash-sale-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.flash-sale-section .title-icon {
+  font-size: 20px;
+  animation: flash 1.5s infinite;
+}
+
+.flash-sale-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.countdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.countdown-label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.countdown-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.time-block {
+  background: #fff;
+  color: #ff6b6b;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.time-separator {
+  color: #fff;
+  font-weight: 700;
+}
+
+.flash-sale-section .section-more {
+  color: #fff;
+  opacity: 0.9;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.flash-sale-section .section-more:hover {
+  opacity: 1;
+}
+
+.flash-sale-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.flash-sale-card {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.flash-sale-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.flash-sale-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 0 0 8px 0;
+  z-index: 2;
+}
+
+.sales-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 100%);
+  z-index: 2;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b6b 0%, #ff4757 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 10px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.flash-sale-card .product-info {
+  padding: 12px;
+}
+
+.flash-sale-card .product-name {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 36px;
+}
+
+.stock-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.stock-text {
+  font-size: 11px;
+  color: #ff6b6b;
+  font-weight: 500;
+}
+
+.buy-btn {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  border: none;
+  border-radius: 15px;
+  padding: 4px 12px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.buy-btn:hover {
+  background: linear-gradient(135deg, #ff4757 0%, #ff6b6b 100%);
+  transform: scale(1.05);
+}
+
 /* ========== 商品列表区域 - 优惠强化版 ========== */
 .products-section {
   width: 100%;
@@ -645,31 +1286,38 @@ onUnmounted(() => {
 .products-container {
   width: 100%;
   padding: 0 12px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 0 10px;
-  background: #fff;
-  margin: 0 -12px 8px;
-  padding-left: 12px;
-  padding-right: 12px;
-  border-radius: 8px 8px 0 0;
+  padding: 16px 0;
+  margin-bottom: 12px;
+  position: relative;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #333;
   display: flex;
   align-items: center;
+  gap: 8px;
+  position: relative;
 }
 
 .title-icon {
-  margin-right: 6px;
-  font-size: 18px;
+  font-size: 20px;
+}
+
+.title-decoration {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #ff6b6b 0%, transparent 100%);
+  margin-left: 12px;
 }
 
 .section-more {
@@ -703,11 +1351,12 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
 .product-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
 .product-image-wrapper {
@@ -727,6 +1376,35 @@ onUnmounted(() => {
 
 .product-card:hover .product-image {
   transform: scale(1.05);
+}
+
+/* 热卖/新品角标 */
+.hot-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.new-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  z-index: 2;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* 折扣角标 */
@@ -905,19 +1583,139 @@ onUnmounted(() => {
   padding: 2px 8px;
   background: #fff1f0;
   border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.product-action:hover {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  color: #fff;
+}
+
+/* ========== 猜你喜欢区域 ========== */
+.recommend-section {
+  background: #fff;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.recommend-card {
+  border: 1px solid #f0f0f0;
+}
+
+/* ========== 底部版权/服务栏 ========== */
+.footer {
+  background: #333;
+  color: #fff;
+  padding: 24px 0;
+  margin-top: 32px;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.footer-services {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #444;
+}
+
+.service-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.service-icon {
+  font-size: 24px;
+}
+
+.service-text {
+  font-size: 13px;
+  color: #ccc;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #444;
+}
+
+.link-group {
+  flex: 1;
+  min-width: 120px;
+}
+
+.link-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.link-list {
+  list-style: none;
+}
+
+.link-list li {
+  margin-bottom: 8px;
+}
+
+.link-list a {
+  color: #ccc;
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.link-list a:hover {
+  color: #ff6b6b;
+}
+
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.social-links {
+  display: flex;
+  gap: 16px;
+}
+
+.social-item {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.social-item:hover {
+  color: #ff6b6b;
 }
 
 /* ========== 响应式适配 ========== */
 /* 平板适配 */
 @media (min-width: 768px) and (max-width: 992px) {
-  .search-header {
-    padding: 12px 20px;
+  .nav-container {
+    padding: 0 20px;
   }
   
-  .search-bar {
-    max-width: 600px;
-    margin: 0 auto;
-    height: 40px;
+  .nav-menu {
+    gap: 24px !important;
+  }
+  
+  .search-header {
+    padding: 12px 20px;
   }
   
   .carousel-slide {
@@ -931,6 +1729,10 @@ onUnmounted(() => {
   
   .slide-title {
     font-size: 28px;
+  }
+  
+  .slide-description {
+    font-size: 16px;
   }
   
   .nav-section {
@@ -961,6 +1763,10 @@ onUnmounted(() => {
     font-size: 13px;
   }
   
+  .flash-sale-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
   .products-grid {
     grid-template-columns: repeat(3, 1fr);
     max-width: 720px;
@@ -971,19 +1777,46 @@ onUnmounted(() => {
   .products-container {
     padding: 0 20px;
   }
+  
+  .footer-services {
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  
+  .footer-links {
+    flex-wrap: wrap;
+    gap: 40px;
+  }
 }
 
 /* PC端适配 */
 @media (min-width: 992px) {
+  .main-nav {
+    position: sticky;
+    top: 0;
+    z-index: 1001;
+  }
+  
+  .nav-container {
+    height: 64px;
+    padding: 0 24px;
+  }
+  
+  .nav-menu {
+    gap: 36px !important;
+  }
+  
+  .nav-link {
+    font-size: 16px !important;
+  }
+  
   .search-header {
     padding: 14px 24px;
   }
   
   .search-bar {
+    height: 40px;
     max-width: 680px;
-    margin: 0 auto;
-    height: 44px;
-    border-radius: 22px;
   }
   
   .search-input-field {
@@ -991,16 +1824,11 @@ onUnmounted(() => {
   }
   
   .search-btn {
-    padding: 8px 24px;
-    border-radius: 18px;
-  }
-  
-  .search-btn span {
-    font-size: 14px;
+    padding: 8px 20px;
   }
   
   .carousel-section {
-    margin-top: 72px;
+    margin-top: 0;
   }
   
   .carousel-slide {
@@ -1010,13 +1838,7 @@ onUnmounted(() => {
   .slide-content {
     left: 60px;
     bottom: 36px;
-  }
-  
-  .slide-tag {
-    font-size: 12px;
-    padding: 4px 14px;
-    border-radius: 12px;
-    margin-bottom: 10px;
+    max-width: 50%;
   }
   
   .slide-title {
@@ -1026,6 +1848,12 @@ onUnmounted(() => {
   
   .slide-description {
     font-size: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .slide-btn {
+    padding: 8px 20px;
+    font-size: 14px;
   }
   
   .carousel-btn {
@@ -1042,29 +1870,12 @@ onUnmounted(() => {
     right: 30px;
   }
   
-  .carousel-indicators {
-    bottom: 20px;
-    gap: 8px;
-  }
-  
-  .indicator {
-    width: 8px;
-    height: 8px;
-  }
-  
-  .indicator.active {
-    width: 28px;
-    border-radius: 4px;
-  }
-  
   .nav-section {
     padding: 24px 0;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
   }
   
   .nav-container {
-    max-width: 1200px;
-    margin: 0 auto;
     padding: 0 24px;
   }
   
@@ -1092,21 +1903,25 @@ onUnmounted(() => {
     color: #666;
   }
   
+  .flash-sale-section {
+    max-width: 1200px;
+    margin: 0 auto 16px;
+  }
+  
+  .flash-sale-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
   .products-section {
     padding-bottom: 40px;
   }
   
   .products-container {
-    max-width: 1200px;
-    margin: 0 auto;
     padding: 0 24px;
   }
   
   .section-header {
-    padding: 20px 0 16px;
-    margin: 0;
-    background: transparent;
-    border-radius: 0;
+    padding: 20px 0;
   }
   
   .section-title {
@@ -1114,12 +1929,7 @@ onUnmounted(() => {
   }
   
   .title-icon {
-    font-size: 22px;
-    margin-right: 8px;
-  }
-  
-  .section-more {
-    font-size: 14px;
+    font-size: 24px;
   }
   
   .products-grid {
@@ -1154,6 +1964,109 @@ onUnmounted(() => {
   
   .discount-text {
     font-size: 12px;
+  }
+  
+  .recommend-section {
+    max-width: 1200px;
+    margin: 0 auto 20px;
+  }
+  
+  .footer-container {
+    padding: 0 24px;
+  }
+}
+
+/* 小屏手机适配 */
+@media (max-width: 480px) {
+  .nav-container {
+    padding: 0 12px;
+  }
+  
+  .nav-menu {
+    gap: 16px !important;
+  }
+  
+  .nav-link {
+    font-size: 13px !important;
+  }
+  
+  .search-header {
+    padding: 8px 12px;
+  }
+  
+  .carousel-slide {
+    height: 160px;
+  }
+  
+  .slide-content {
+    left: 16px;
+    bottom: 12px;
+  }
+  
+  .slide-title {
+    font-size: 16px;
+  }
+  
+  .slide-description {
+    font-size: 12px;
+  }
+  
+  .nav-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  
+  .nav-item {
+    padding: 8px 4px;
+  }
+  
+  .nav-icon-bg {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .nav-icon {
+    font-size: 18px;
+  }
+  
+  .nav-name {
+    font-size: 11px;
+  }
+  
+  .flash-sale-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px 16px;
+  }
+  
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .footer-services {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  
+  .service-item {
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  .footer-links {
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .link-group {
+    text-align: center;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    gap: 12px;
   }
 }
 </style>
